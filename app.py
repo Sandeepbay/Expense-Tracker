@@ -51,5 +51,32 @@ def view_expenses():
     ).fetchall()
     return render_template('view_expenses.html', expenses=expenses)
 
+@app.route('/edit/<int:id>' , methods=["GET" , "POST"])
+def edit_expense(id):
+    db = get_db()
+    if request.method == "POST":
+        amount = request.form["amount"]
+        category = request.form["category"]
+        date = request.form["date"]
+
+        db.execute(
+            'UPDATE Expenses SET amount = ? , category = ?, date = ? where id = ?',
+            (amount , category , date , id)
+        )
+        db.commit()
+        return redirect(url_for('view_expenses'))
+    expense = db.execute(
+        'SELECT * FROM Expenses where id = ?',
+        (id,)
+    ).fetchone()
+    return render_template('edit_expenses.html' , expense = expense)
+
+@app.route('/delete/<int:id>' , methods=["GET"])
+def delete_expense(id):
+    db = get_db()
+    db.execute('DELETE FROM Expenses where id = ?' , (id,))
+    db.commit()
+    return redirect(url_for('view_expenses'))
+
 if __name__ == '__main__':
     app.run(debug=True)
