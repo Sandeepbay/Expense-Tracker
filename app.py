@@ -1,7 +1,12 @@
-from flask import Flask, g, render_template, request, redirect, url_for
+from flask import Flask, g, render_template, request, redirect, url_for , session , flash
 import sqlite3
+from flask_session import Session
 
 app = Flask(__name__)
+
+app.secret_key = "Sandeepbay@9"
+app.config['SESSION_TYPE'] = 'filesystem'
+Session(app)
 
 DATABASE = 'expenses.db'
 
@@ -77,6 +82,44 @@ def delete_expense(id):
     db.execute('DELETE FROM Expenses where id = ?' , (id,))
     db.commit()
     return redirect(url_for('view_expenses'))
+
+@app.route('/register' , methods=["GET" , "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form['username']
+        password = request.form['password']
+        db = get_db()
+        try:
+            db.execute('INSERT INTO Users (username , password) VALUES (? , ?)' , (username , password))
+            db.commit()
+            flash("Registraion successfull! Please Log in" , "success")
+            return redirect(url_for('login'))
+        except sqlite3.IntegrityError:
+            flash('Username already exists! Please choose another!' , 'danger')
+    return render_template('register.html')
+
+@app.route('/login' , methods=["GET" , "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form['username']
+        password = request.form['password']
+        db = get_db()
+        user = db.execute('SELECT * FROM Users where username = ? AND password = ?' , (username , password)).fetchone()
+
+        if user:
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            flash("Login Successful" , "success")
+            return redirect(url_for('view_expenses'))
+        else:
+            flash("Invalid username or password" , 'danger')
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash("You have been successfully logged out" , 'info')
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     app.run(debug=True)
