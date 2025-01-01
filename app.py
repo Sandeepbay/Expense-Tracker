@@ -1,6 +1,7 @@
 from flask import Flask, g, render_template, request, redirect, url_for , session , flash
 import sqlite3
 from flask_session import Session
+from functools import wraps
 
 app = Flask(__name__)
 
@@ -23,11 +24,22 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args , **kwargs):
+        if 'user_id' not in session:
+            flash('Please Log in to access this page.' , 'success')
+            return redirect(url_for('login'))
+        return f(*args , **kwargs)
+    return decorated_function
+
+
 @app.route('/')
 def home():
     return redirect(url_for('add_expense'))
 
 @app.route('/add', methods=['GET', 'POST'])
+@login_required
 def add_expense():
     if request.method == 'POST':
         # Get form data
@@ -39,20 +51,21 @@ def add_expense():
         db = get_db()
         db.execute(
             'INSERT INTO Expenses (user_id, amount, category, date) VALUES (?, ?, ?, ?)',
-            (1, amount, category, date)  # Assuming user_id=1 for now
+            (session['user_id'], amount, category, date)  # Assuming user_id=1 for now
         )
         db.commit()
-
+        flash('Expense Added Succesfully' , 'success')
         return redirect(url_for('view_expenses'))
 
     return render_template('add_expense.html')
 
 @app.route('/view')
+@login_required
 def view_expenses():
     db = get_db()
     expenses = db.execute(
         'SELECT * FROM Expenses WHERE user_id = ?',
-        (1,)  # Assuming user_id=1 for now
+        (session['user_id'],)  # Assuming user_id=1 for now
     ).fetchall()
     return render_template('view_expenses.html', expenses=expenses)
 
